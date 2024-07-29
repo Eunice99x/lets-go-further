@@ -1,21 +1,53 @@
 package main
 
 import (
-	"log"
+	"flag"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"time"
 )
 
+const version = "1.0.0"
+
+type config struct {
+	port int
+	env  string
+}
+
+type application struct {
+	config config
+	logger *slog.Logger
+}
+
 func main() {
+	var cfg config
+
+	flag.IntVar(&cfg.port, "port", 4000, "API server port")
+	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	flag.Parse()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	app := &application{config: cfg, logger: logger}
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
-	})
+	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
 
-	log.Print("Listening on port 8080")
-
-	err := http.ListenAndServe(":8080", mux)
-	if err != nil {
-		log.Fatal(err)
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.port),
+		Handler:      app.routes(),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
+
+	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
+
+	err := srv.ListenAndServe()
+	logger.Error(err.Error())
+	os.Exit(1)
 }
