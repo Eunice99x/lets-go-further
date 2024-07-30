@@ -1,0 +1,7 @@
+the diff between json.Encoder() and json.Marshal()
+
+json encoder faster than marshal n uses less memory, also json.Marshal uses extra heap memory allocation
+but Imagine, for example, that you want to set a Cache-Control header on a successful
+    response, but not set a Cache-Control header if the JSON encoding fails and you have to
+    return an error response.
+    Implementing that cleanly while using the json.Encoder pattern is quite difficult.
